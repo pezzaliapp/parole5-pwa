@@ -1,1 +1,1 @@
-Parole5 PWA robust v2 build.
+Parole5 PWA v3 — dizionario integrato: 2730 parole.
