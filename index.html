@@ -17,7 +17,7 @@
     .btn{border:0;background:var(--card);color:var(--ink);padding:8px 10px;border-radius:12px;cursor:pointer}
     .btn:active{transform:scale(0.98)}
     .btn.primary{background:var(--accent);color:#07212a}
-    #board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;width:min(92vw,520px);aspect-ratio:5/6;background:transparent}
+    #board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;width:min(92vw,520px);aspect-ratio:5/6;height:calc(min(92vw,520px)*1.2);background:transparent}
     .row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
     .tile{display:flex;align-items:center;justify-content:center;border:2px solid #334155;background:var(--card);border-radius:10px;font-weight:700;font-size:clamp(18px,5.8vw,28px);text-transform:uppercase;user-select:none}
     .tile.filled{border-color:#64748b}
@@ -352,6 +352,14 @@
   function updateCount(){ document.getElementById('countWords').textContent = DICT.length.toLocaleString('it-IT'); }
 
   function showToast(msg){ toast.textContent=msg; toast.style.display='block'; clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.style.display='none',1500); }
-})();</script>
+})();
+window.addEventListener('error', (e)=>{
+  const t = document.getElementById('toast');
+  if(!t) return;
+  t.textContent = 'Errore: ' + (e.message||'script');
+  t.style.display='block';
+});
+</script>
+
 </body>
 </html>
