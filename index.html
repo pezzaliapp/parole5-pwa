@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Parole5 — Wordle italiano</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/favicon.png">
+  <style>
+    :root{--bg:#0f172a;--card:#111827;--ink:#e5e7eb;--muted:#94a3b8;--ok:#22c55e;--maybe:#eab308;--no:#334155;--accent:#38bdf8}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%}
+    body{margin:0;display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
+    header{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;padding:10px 14px}
+    h1{font-size:20px;margin:0;letter-spacing:1px}
+    .btn{border:0;background:var(--card);color:var(--ink);padding:8px 10px;border-radius:12px;cursor:pointer}
+    .btn:active{transform:scale(0.98)}
+    .btn.primary{background:var(--accent);color:#07212a}
+    #board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;width:min(92vw,520px);aspect-ratio:5/6;background:transparent}
+    .row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+    .tile{display:flex;align-items:center;justify-content:center;border:2px solid #334155;background:var(--card);border-radius:10px;font-weight:700;font-size:clamp(18px,5.8vw,28px);text-transform:uppercase;user-select:none}
+    .tile.filled{border-color:#64748b}
+    .tile.ok{background:var(--ok);border-color:var(--ok);color:#041b0b}
+    .tile.maybe{background:var(--maybe);border-color:var(--maybe);color:#1b1504}
+    .tile.no{background:var(--no);border-color:var(--no);color:#cbd5e1}
+    #keyboard{display:grid;grid-template-rows:repeat(3,1fr);gap:8px;width:min(96vw,560px);padding:8px}
+    .kbrow{display:grid;grid-auto-columns:1fr;grid-auto-flow:column;gap:6px}
+    .key{height:46px;border:0;border-radius:10px;background:#1f2937;color:#e2e8f0;font-weight:700;cursor:pointer}
+    .key.sm{font-size:12px}
+    .key.ok{background:var(--ok);color:#052e12}
+    .key.maybe{background:var(--maybe);color:#1b1504}
+    .key.no{background:#334155;color:#94a3b8}
+    footer{max-width:560px;opacity:.85;font-size:12px;color:var(--muted);padding:0 12px 14px;text-align:center}
+    #toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#000c;border:1px solid #334155;color:#e2e8f0;padding:8px 12px;border-radius:10px;backdrop-filter:blur(6px);display:none}
+    dialog{border:1px solid #334155;background:#0b1220;color:#e5e7eb;border-radius:14px;padding:0;max-width:min(92vw,560px)}
+    .dlg-h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #1f2937}
+    .dlg-c{padding:12px 14px}
+    input[type=file]{display:none}
+    .pill{display:inline-flex;gap:8px;align-items:center;background:#0f1a2e;border:1px solid #1e2a42;border-radius:999px;padding:6px 10px;font-size:12px;color:#cbd5e1}
+    .row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .hint{font-size:12px;color:#9ca3af}
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;gap:10px;align-items:center">
+      <img src="icons/icon-48.png" width="28" height="28" alt="" style="border-radius:6px">
+      <h1>PAROLE5</h1>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="btnDict" class="btn">Dizionario</button>
+      <button id="btnShare" class="btn">Condividi</button>
+      <button id="btnNew" class="btn" title="Nuova parola (solo test)">Nuova</button>
+    </div>
+  </header>
+
+  <main id="board" aria-label="Griglia delle lettere"></main>
+
+  <section id="keyboard" aria-label="Tastiera">
+    <div class="kbrow" id="kb1"></div>
+    <div class="kbrow" id="kb2"></div>
+    <div class="kbrow" id="kb3"></div>
+  </section>
+
+  <footer>
+    Wordle‑like in italiano. PWA offline, una parola al giorno. Aggiungi alla Home su iOS/Android per un'esperienza full‑screen.
+  </footer>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="dlg">
+    <div class="dlg-h">
+      <strong style="letter-spacing:.5px">Gestione Dizionario (IT, 5 lettere)</strong>
+      <button class="btn" onclick="document.getElementById('dlg').close()">Chiudi</button>
+    </div>
+    <div class="dlg-c">
+      <div class="pill">Attive: <span id="countWords">0</span> parole</div>
+      <div class="row-actions">\n        <label class="btn"><input type="checkbox" id="useLarge" style="margin-right:6px">Usa lista estesa (se disponibile)</label>
+        <label class="btn primary" for="fileInput">Carica file .txt</label>
+        <input id="fileInput" type="file" accept=".txt" />
+        <button id="btnPaste" class="btn">Incolla parole</button>
+        <button id="btnExport" class="btn">Esporta .txt</button>
+        <button id="btnReset" class="btn">Ripristina starter</button>
+      </div>
+      <p class="hint">Formato: una parola per riga (solo lettere A‑Z), 5 lettere, MAIUSCOLE o minuscole. Il dizionario viene salvato offline.</p>
+      <details>
+        <summary>Come ampliare il dizionario</summary>
+        <p class="hint">Carica un file con migliaia di parole da fonti pubbliche (es. wordlist IT). Più parole = gioco più ricco. Lo starter incluso è solo dimostrativo.</p>
+      </details>
+    </div>
+  </dialog>
+
+<script>
+(function(){
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    });
+  }
+
+  const STARTER_URL = 'words-it-5.txt';\n  const LARGE_URL = 'words-it-5-large.txt';
+  const LS_KEY = 'parole5-dict-it-5';
+  const STATE_KEY = 'parole5-'+todayKey();
+
+  let DICT = [];
+
+  const state = {
+    answer: 'AMORE',
+    row: 0,
+    col: 0,
+    grid: Array.from({length:6},()=>Array(5).fill('')),
+    locked:false,
+  };
+
+  const board = document.getElementById('board');
+  const toast = document.getElementById('toast');
+
+  for(let r=0;r<6;r++){
+    const row=document.createElement('div'); row.className='row';
+    for(let c=0;c<5;c++){
+      const tile=document.createElement('div');
+      tile.className='tile'; tile.id=`t${r}${c}`; row.appendChild(tile);
+    }
+    board.appendChild(row);
+  }
+
+  const K1 = "QWERTYUIOP".split('');
+  const K2 = "ASDFGHJKL".split('');
+  const K3 = ["INVIO","Z","X","C","V","B","N","M","⌫"];
+  [["kb1",K1],["kb2",K2],["kb3",K3]].forEach(([id,keys])=>{
+    const wrap=document.getElementById(id);
+    keys.forEach(k=>{
+      const b=document.createElement('button');
+      b.className='key'+(k.length>1?' sm':'');
+      b.textContent=k;
+      b.addEventListener('click',()=>onKey(k));
+      wrap.appendChild(b);
+    });
+  });
+
+  document.addEventListener('keydown', (e)=>{
+    if(state.locked) return;
+    if(e.key==='Enter') onKey('INVIO');
+    else if(e.key==='Backspace') onKey('⌫');
+    else if(/^[a-zA-ZÀ-ÿ]$/.test(e.key)) onKey(e.key.toUpperCase());
+  });
+
+  initDict().then(()=>{
+    state.answer = pickDailyWord(DICT);
+    restoreState();
+    updateCount();
+  });
+
+  
+  // Read toggle from localStorage
+  const useLargeBox = document.getElementById('useLarge');
+  const USE_LS = 'parole5-use-large';
+  if (useLargeBox){
+    const pref = localStorage.getItem(USE_LS);
+    useLargeBox.checked = pref === '1';
+    useLargeBox.addEventListener('change', ()=>{
+      localStorage.setItem(USE_LS, useLargeBox.checked ? '1' : '0');
+      // Reload dictionary immediately
+      localStorage.removeItem(LS_KEY);
+      location.reload();
+    });
+  }
+
+  async function initDict(){
+    const saved = localStorage.getItem(LS_KEY);
+    if(saved){
+      try {
+        const arr = JSON.parse(saved);
+        if(Array.isArray(arr) && arr.length>0){ DICT = sanitizeWords(arr); return; }
+      } catch {}
+    }
+    try{
+      const useLarge = (localStorage.getItem('parole5-use-large')==='1');
+      const url = LARGE_URL;
+      const txt = await fetch(url).then(r=>r.text());
+      DICT = sanitizeWords(txt.split(/\r?\n/));
+      saveDict();
+    }catch{
+      DICT = [];
+    }
+  }
+
+  function sanitizeWords(arr){
+    const set = new Set();
+    arr.forEach(w=>{
+      if(!w) return;
+      const s = w.toString().normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase();
+      if(s.length===5) set.add(s);
+    });
+    return Array.from(set);
+  }
+
+  function saveDict(){ localStorage.setItem(LS_KEY, JSON.stringify(DICT)); }
+  function todayKey(){ return new Date().toISOString().slice(0,10); }
+  function pickDailyWord(list){
+    if(!list || list.length===0) return 'AMORE';
+    const seed = todayKey().replace(/-/g,'');
+    let h=0; for(let i=0;i<seed.length;i++){h=(h*31 + seed.charCodeAt(i))>>>0}
+    return list[h % list.length];
+  }
+
+  function onKey(k){
+    if(state.locked) return;
+    if(k==='INVIO') return submit();
+    if(k==='⌫') return back();
+    if(!/^[A-Z]$/.test(k)) return;
+    if(state.col<5){
+      state.grid[state.row][state.col]=k;
+      paint(state.row,state.col,k);
+      state.col++;
+      tileEl(state.row,state.col-1).classList.add('filled');
+    }
+  }
+
+  function back(){
+    if(state.col>0){
+      state.col--; state.grid[state.row][state.col]='';
+      paint(state.row,state.col,'');
+      tileEl(state.row,state.col).classList.remove('filled');
+    }
+  }
+
+  function submit(){
+    if(state.col<5){return showToast('Servono 5 lettere.');}
+    const guess = state.grid[state.row].join('');
+    if(!DICT.includes(guess)) return showToast('Parola non nel dizionario.');
+    const res = score(guess, state.answer);
+    reveal(res);
+    colorKeyboard(guess,res);
+
+    if(res.every(x=>x==='ok')){
+      state.locked=true; persist(true);
+      return showToast('Bravo! Hai indovinato.');
+    }
+    state.row++; state.col=0;
+    if(state.row===6){ state.locked=true; persist(false); showToast(`La parola era ${state.answer}.`); }
+  }
+
+  function score(guess, answer){
+    const g=guess.split(''); const a=answer.split('');
+    const res = Array(5).fill('no'); const freq = {};
+    a.forEach(ch=>freq[ch]=(freq[ch]||0)+1);
+    for(let i=0;i<5;i++) if(g[i]===a[i]){res[i]='ok'; freq[g[i]]--;}
+    for(let i=0;i<5;i++) if(res[i]==='no' && (freq[g[i]]||0)>0){res[i]='maybe'; freq[g[i]]--;}
+    return res;
+  }
+
+  function reveal(res){
+    for(let c=0;c<5;c++){
+      const el = tileEl(state.row,c);
+      el.classList.remove('filled');
+      el.classList.add(res[c]);
+    }
+    persist();
+  }
+
+  function colorKeyboard(guess,res){
+    const m = {};
+    for(let i=0;i<5;i++){
+      const ch=guess[i];
+      const val=res[i]==='ok'?3:res[i]==='maybe'?2:1;
+      m[ch]=Math.max(m[ch]||0,val);
+    }
+    document.querySelectorAll('.key').forEach(k=>{
+      const ch=k.textContent.length===1?k.textContent:null; if(!ch) return;
+      const v=m[ch]; if(!v) return;
+      k.classList.remove('ok','maybe','no');
+      if(v===3) k.classList.add('ok');
+      else if(v===2) k.classList.add('maybe');
+      else k.classList.add('no');
+    });
+  }
+
+  function tileEl(r,c){return document.getElementById(`t${r}${c}`)}
+  function paint(r,c,ch){ tileEl(r,c).textContent=ch }
+
+  function persist(win){
+    const data={win:win??null, grid:state.grid, row:state.row, answer:state.answer};
+    localStorage.setItem(STATE_KEY, JSON.stringify(data));
+  }
+  function restoreState(){
+    const raw = localStorage.getItem(STATE_KEY); if(!raw) return;
+    try{
+      const d = JSON.parse(raw);
+      if(!d) return;
+      state.answer=d.answer||state.answer;
+      state.grid=d.grid||state.grid;
+      state.row=0; state.col=0;
+      for(let r=0;r<6;r++){
+        for(let c=0;c<5;c++){ paint(r,c, state.grid[r][c]||''); if(state.grid[r][c]) tileEl(r,c).classList.add('filled'); }
+        if(state.grid[r].every(x=>x)){
+          const res=score(state.grid[r].join(''),state.answer);
+          revealRow(r,res); colorKeyboard(state.grid[r].join(''),res); state.row=r+1; state.col=0;
+        }
+      }
+      if(d.win===true || state.row>=6){ state.locked=true; }
+    }catch{}
+  }
+  function revealRow(r,res){ for(let c=0;c<5;c++){ const el=tileEl(r,c); el.classList.remove('filled'); el.classList.add(res[c]); } }
+
+  document.getElementById('btnShare').addEventListener('click',()=>{
+    const lines=[]; let tries=state.locked && state.row<=6?state.row:Math.min(state.row,6);
+    lines.push(`Parole5 ${new Date().toISOString().slice(0,10)} ${tries}/6`);
+    for(let r=0;r<Math.min(state.row,6);r++){
+      if(!state.grid[r].every(x=>x)) break;
+      const res=score(state.grid[r].join(''),state.answer);
+      lines.push(res.map(x=> x==='ok'?'🟩': x==='maybe'?'🟨':'⬛').join(''))
+    }
+    const text=lines.join('\n');
+    if(navigator.share){ navigator.share({text}).catch(()=>copy(text)); }
+    else copy(text);
+  });
+  function copy(t){ navigator.clipboard.writeText(t).then(()=>showToast('Copiato negli appunti!')).catch(()=>showToast('Testo pronto da incollare.')) }
+
+  document.getElementById('btnNew').addEventListener('click',()=>{
+    localStorage.removeItem(STATE_KEY); location.reload();
+  });
+
+  const dlg = document.getElementById('dlg');
+  document.getElementById('btnDict').addEventListener('click',()=>{ dlg.showModal(); updateCount(); });
+  document.getElementById('btnReset').addEventListener('click',()=>{
+    fetch(STARTER_URL).then(r=>r.text()).then(t=>{
+      DICT = sanitizeWords(t.split(/\r?\n/)); saveDict(); updateCount(); showToast('Starter ripristinato.');
+    });
+  });
+  document.getElementById('btnExport').addEventListener('click',()=>{
+    const blob = new Blob([DICT.join('\n')], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='words-it-5.txt'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  });
+  document.getElementById('btnPaste').addEventListener('click',async()=>{
+    const txt = prompt('Incolla qui parole (una per riga):'); if(!txt) return;
+    const arr = txt.split(/\r?\n/);
+    const merged = sanitizeWords(DICT.concat(arr));
+    DICT = merged; saveDict(); updateCount(); showToast('Dizionario aggiornato.');
+  });
+  document.getElementById('fileInput').addEventListener('change',async(e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const txt = await file.text();
+    const arr = txt.split(/\r?\n/);
+    DICT = sanitizeWords(arr);
+    saveDict(); updateCount(); showToast('Dizionario caricato.');
+  });
+
+  function updateCount(){ document.getElementById('countWords').textContent = DICT.length.toLocaleString('it-IT'); }
+
+  function showToast(msg){ toast.textContent=msg; toast.style.display='block'; clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.style.display='none',1500); }
+})();</script>
+</body>
+</html>
