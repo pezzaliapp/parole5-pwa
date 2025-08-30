@@ -1,4 +1,4 @@
-const CACHE = 'parole5-v9';
+const CACHE = 'parole5-v11';
 const ASSETS = [
   './',
   './index.html',

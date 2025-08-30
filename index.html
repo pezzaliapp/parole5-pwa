@@ -34,6 +34,8 @@
     footer{max-width:560px;opacity:.85;font-size:12px;color:var(--muted);padding:0 12px 14px;text-align:center}
     #toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#000c;border:1px solid #334155;color:#e2e8f0;padding:8px 12px;border-radius:10px;backdrop-filter:blur(6px);display:none;z-index:9999}
     .status{font-size:12px;color:#9ca3af;margin-left:8px}
+    .opt{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}
+    .opt input{transform:scale(1.1)}
   </style>
 </head>
 <body>
@@ -44,7 +46,7 @@
       <span id="status" class="status">Init…</span>
     </div>
     <div style="display:flex;gap:8px">
-      <button id="btnDict" class="btn">Dizionario</button>
+      <button id="btnDict" class="btn">Opzioni</button>
       <button id="btnShare" class="btn">Condividi</button>
       <button id="btnNew" class="btn" title="Nuova parola (solo test)">Nuova</button>
     </div>
@@ -73,13 +75,15 @@
 
   <dialog id="dlg">
     <div class="dlg-h" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #1f2937">
-      <strong style="letter-spacing:.5px">Gestione Dizionario</strong>
+      <strong style="letter-spacing:.5px">Opzioni & Dizionario</strong>
       <button class="btn" onclick="document.getElementById('dlg').close()">Chiudi</button>
     </div>
     <div class="dlg-c" style="padding:12px 14px">
       <div class="pill" style="display:inline-flex;gap:8px;align-items:center;background:#0f1a2e;border:1px solid #1e2a42;border-radius:999px;padding:6px 10px;font-size:12px;color:#cbd5e1">
         Attive: <span id="countWords">0</span> parole
       </div>
+      <label class="opt"><input type="checkbox" id="optAny"> Permetti qualsiasi 5 lettere</label>
+      <label class="opt"><input type="checkbox" id="optHard"> Modalità Difficile (riusa verdi/gialle)</label>
       <div class="row-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <label class="btn primary" for="fileInput">Carica file .txt</label>
         <input id="fileInput" type="file" accept=".txt" style="display:none" />
@@ -87,7 +91,7 @@
         <button id="btnExport" class="btn">Esporta .txt</button>
         <button id="btnReset" class="btn">Ripristina lista integrata</button>
       </div>
-      <p class="hint" style="font-size:12px;color:#9ca3af">Formato: una parola per riga (A‑Z), 5 lettere. Il dizionario aggiornato resta offline (localStorage).</p>
+      <p class="hint" style="font-size:12px;color:#9ca3af">Le opzioni restano salvate. In Modalità Difficile ogni nuovo tentativo deve rispettare le informazioni già scoperte.</p>
     </div>
   </dialog>
 
@@ -104,15 +108,29 @@
   }
 
   const LS_KEY = 'parole5-dict-it-5';
+  const LS_OPT = 'parole5-opts';
   const STATE_KEY = 'parole5-'+todayKey();
   const statusEl = document.getElementById('status');
 
+  // Options
+  const opts = loadOpts();
+  const optAny = document.getElementById('optAny');
+  const optHard = document.getElementById('optHard');
+  optAny.checked = !!opts.allowAny;
+  optHard.checked = !!opts.hard;
+  optAny.addEventListener('change', ()=>{ opts.allowAny = optAny.checked; saveOpts(); toastOpt(); });
+  optHard.addEventListener('change', ()=>{ opts.hard = optHard.checked; saveOpts(); toastOpt(); });
+  function toastOpt(){ showToast('Opzioni aggiornate'); status(buildStatus()); }
+  function buildStatus(){ return 'Dizionario integrato: '+DICT_ACTIVE.length.toLocaleString('it-IT')+' • '+(opts.allowAny?'Permissiva':'Classica')+' • '+(opts.hard?'Dura':'Normale'); }
+
+  // Dict
   let DICT_ACTIVE = [];
   const saved = localStorage.getItem(LS_KEY);
   if (saved) { try { const arr = JSON.parse(saved); if (Array.isArray(arr) && arr.length>0) DICT_ACTIVE = sanitizeWords(arr); } catch{} }
   if (DICT_ACTIVE.length === 0) DICT_ACTIVE = DICT.slice();
 
-  const state = { answer:'AMORE', row:0, col:0, grid:Array.from({length:6},()=>Array(5).fill('')), locked:false };
+  // State
+  const state = { answer:'AMORE', row:0, col:0, grid:Array.from({length:6},()=>Array(5).fill('')), locked:false, constraints:initConstraints() };
 
   const K1 = "QWERTYUIOP".split('');
   const K2 = "ASDFGHJKL".split('');
@@ -130,10 +148,12 @@
   state.answer = pickDailyWord(DICT_ACTIVE);
   restoreState();
   updateCount();
-  status('Dizionario integrato: '+DICT_ACTIVE.length.toLocaleString('it-IT')+' parole');
+  status(buildStatus());
 
   function sanitizeWords(arr){ const set = new Set(); arr.forEach(w=>{ if(!w) return; const s = w.toString().normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase(); if(s.length===5) set.add(s); }); return Array.from(set); }
   function saveDict(){ localStorage.setItem(LS_KEY, JSON.stringify(DICT_ACTIVE)); }
+  function loadOpts(){ try{ return JSON.parse(localStorage.getItem(LS_OPT))||{} }catch{ return {} } }
+  function saveOpts(){ localStorage.setItem(LS_OPT, JSON.stringify(opts)); }
   function todayKey(){ return new Date().toISOString().slice(0,10); }
   function pickDailyWord(list){ if(!list || list.length===0) return 'AMORE'; const seed = todayKey().replace(/-/g,''); let h=0; for(let i=0;i<seed.length;i++){h=(h*31 + seed.charCodeAt(i))>>>0} return list[h % list.length]; }
 
@@ -150,8 +170,16 @@
   function submit(){
     if(state.col<5) return showToast('Servono 5 lettere.');
     const guess = state.grid[state.row].join('');
-    if(!DICT_ACTIVE.includes(guess)) return showToast('Parola non nel dizionario.');
+
+    if(!opts.allowAny && !DICT_ACTIVE.includes(guess)) return showToast('Parola non nel dizionario.');
+
+    if(opts.hard){
+      const msg = checkHardMode(guess);
+      if(msg){ showToast('Modalità Difficile: '+msg); return; }
+    }
+
     const res = score(guess, state.answer); reveal(res); colorKeyboard(guess,res);
+    updateConstraintsAfter(guess,res);
     if(res.every(x=>x==='ok')){ state.locked=true; persist(true); return showToast('Bravo! Hai indovinato.'); }
     state.row++; state.col=0;
     if(state.row===6){ state.locked=true; persist(false); showToast(`La parola era ${state.answer}.`); }
@@ -163,17 +191,56 @@
   function tileEl(r,c){return document.getElementById(`t${r}${c}`)}
   function paint(r,c,ch){ tileEl(r,c).textContent=ch }
 
-  function persist(win){ const data={win:win??null, grid:state.grid, row:state.row, answer:state.answer}; localStorage.setItem(STATE_KEY, JSON.stringify(data)); }
-  function restoreState(){ const raw = localStorage.getItem(STATE_KEY); if(!raw) return; try{ const d = JSON.parse(raw); if(!d) return; state.answer=d.answer||state.answer; state.grid=d.grid||state.grid; state.row=0; state.col=0; for(let r=0;r<6;r++){ for(let c=0;c<5;c++){ paint(r,c, state.grid[r][c]||''); if(state.grid[r][c]) tileEl(r,c).classList.add('filled'); } if(state.grid[r].every(x=>x)){ const res=score(state.grid[r].join(''),state.answer); revealRow(r,res); colorKeyboard(state.grid[r].join(''),res); state.row=r+1; state.col=0; } } if(d.win===true || state.row>=6){ state.locked=true; } }catch(e){ console.warn(e); } }
+  function persist(win){ const data={win:win??null, grid:state.grid, row:state.row, answer:state.answer, constraints:state.constraints, opts:opts}; localStorage.setItem(STATE_KEY, JSON.stringify(data)); }
+  function restoreState(){ const raw = localStorage.getItem(STATE_KEY); if(!raw) return; try{ const d = JSON.parse(raw); if(!d) return; if(d.opts){ Object.assign(opts, d.opts); } if(d.constraints){ state.constraints=d.constraints; } state.answer=d.answer||state.answer; state.grid=d.grid||state.grid; state.row=0; state.col=0; for(let r=0;r<6;r++){ for(let c=0;c<5;c++){ paint(r,c, state.grid[r][c]||''); if(state.grid[r][c]) tileEl(r,c).classList.add('filled'); } if(state.grid[r].every(x=>x)){ const res=score(state.grid[r].join(''),state.answer); revealRow(r,res); colorKeyboard(state.grid[r].join(''),res); state.row=r+1; state.col=0; } } if(d.win===true || state.row>=6){ state.locked=true; } optAny.checked=!!opts.allowAny; optHard.checked=!!opts.hard; }catch(e){ console.warn(e); } }
   function revealRow(r,res){ for(let c=0;c<5;c++){ const el=tileEl(r,c); el.classList.remove('filled'); el.classList.add(res[c]); } }
 
-  // Dictionary dialog
+  // ---- Hard mode constraints ----
+  function initConstraints(){ return { greens:Array(5).fill(null), minCounts:{}, notAt:{} }; }
+  function updateConstraintsAfter(guess,res){
+    for(let i=0;i<5;i++){
+      const ch = guess[i];
+      if(res[i]==='ok'){ state.constraints.greens[i]=ch; state.constraints.minCounts[ch] = Math.max(state.constraints.minCounts[ch]||0, countChar(guess,ch, (x,j)=>res[j]!=='no')); }
+      else if(res[i]==='maybe'){
+        state.constraints.minCounts[ch] = Math.max(state.constraints.minCounts[ch]||0, 1);
+        (state.constraints.notAt[ch]||(state.constraints.notAt[ch]=new Set())).add(i);
+      }
+    }
+    // convert Sets to arrays for persistence
+    for(const k in state.constraints.notAt){ state.constraints.notAt[k] = Array.from(state.constraints.notAt[k]); }
+  }
+  function checkHardMode(guess){
+    // Ensure greens fixed
+    for(let i=0;i<5;i++){
+      const g = state.constraints.greens[i];
+      if(g && guess[i]!==g) return `devi usare ${g} in posizione ${i+1}`;
+    }
+    // Ensure yellow/green min counts
+    const need = state.constraints.minCounts || {};
+    for(const ch in need){
+      const have = countChar(guess, ch);
+      if(have < need[ch]) return `includi la lettera ${ch}`;
+    }
+    // Ensure yellow not-at positions
+    const notAt = state.constraints.notAt || {};
+    for(const ch in notAt){
+      const idxs = notAt[ch];
+      for(let j=0;j<idxs.length;j++){
+        const i = idxs[j];
+        if(guess[i]===ch) return `${ch} non può stare in posizione ${i+1}`;
+      }
+    }
+    return null;
+  }
+  function countChar(word, ch, pred){ let c=0; for(let i=0;i<word.length;i++){ if(word[i]===ch && (!pred || pred(word[i],i))) c++; } return c; }
+
+  // Dialog actions (dict management same as v3.1)
   const dlg = document.getElementById('dlg');
   document.getElementById('btnDict').addEventListener('click',()=>{ dlg.showModal(); updateCount(); });
-  document.getElementById('btnReset').addEventListener('click',()=>{ DICT_ACTIVE = DICT.slice(); saveDict(); updateCount(); showToast('Ripristinata la lista integrata.'); status('Dizionario integrato: '+DICT_ACTIVE.length); });
+  document.getElementById('btnReset').addEventListener('click',()=>{ DICT_ACTIVE = DICT.slice(); saveDict(); updateCount(); showToast('Ripristinata la lista integrata.'); status(buildStatus()); });
   document.getElementById('btnExport').addEventListener('click',()=>{ const blob = new Blob([DICT_ACTIVE.join('\n')], {type:'text/plain'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='words-it-5.txt'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500); });
-  document.getElementById('btnPaste').addEventListener('click',async()=>{ const txt = prompt('Incolla qui parole (una per riga):'); if(!txt) return; const arr = txt.split(/\r?\n/); DICT_ACTIVE = sanitizeWords(DICT_ACTIVE.concat(arr)); saveDict(); updateCount(); showToast('Dizionario aggiornato.'); status('Dizionario attivo: '+DICT_ACTIVE.length); });
-  document.getElementById('fileInput').addEventListener('change',async(e)=>{ const file = e.target.files[0]; if(!file) return; const txt = await file.text(); DICT_ACTIVE = sanitizeWords(txt.split(/\r?\n/)); saveDict(); updateCount(); showToast('Dizionario caricato.'); status('Dizionario attivo: '+DICT_ACTIVE.length); });
+  document.getElementById('btnPaste').addEventListener('click',async()=>{ const txt = prompt('Incolla qui parole (una per riga):'); if(!txt) return; const arr = txt.split(/\r?\n/); DICT_ACTIVE = sanitizeWords(DICT_ACTIVE.concat(arr)); saveDict(); updateCount(); showToast('Dizionario aggiornato.'); status(buildStatus()); });
+  document.getElementById('fileInput').addEventListener('change',async(e)=>{ const file = e.target.files[0]; if(!file) return; const txt = await file.text(); DICT_ACTIVE = sanitizeWords(txt.split(/\r?\n/)); saveDict(); updateCount(); showToast('Dizionario caricato.'); status(buildStatus()); });
 
   function updateCount(){ document.getElementById('countWords').textContent = DICT_ACTIVE.length.toLocaleString('it-IT'); }
   function status(msg){ if(statusEl) statusEl.textContent = msg; }
