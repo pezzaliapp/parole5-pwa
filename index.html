@@ -32,14 +32,8 @@
     .key.maybe{background:var(--maybe);color:#1b1504}
     .key.no{background:#334155;color:#94a3b8}
     footer{max-width:560px;opacity:.85;font-size:12px;color:var(--muted);padding:0 12px 14px;text-align:center}
-    #toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#000c;border:1px solid #334155;color:#e2e8f0;padding:8px 12px;border-radius:10px;backdrop-filter:blur(6px);display:none}
-    dialog{border:1px solid #334155;background:#0b1220;color:#e5e7eb;border-radius:14px;padding:0;max-width:min(92vw,560px)}
-    .dlg-h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #1f2937}
-    .dlg-c{padding:12px 14px}
-    input[type=file]{display:none}
-    .pill{display:inline-flex;gap:8px;align-items:center;background:#0f1a2e;border:1px solid #1e2a42;border-radius:999px;padding:6px 10px;font-size:12px;color:#cbd5e1}
-    .row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .hint{font-size:12px;color:#9ca3af}
+    #toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#000c;border:1px solid #334155;color:#e2e8f0;padding:8px 12px;border-radius:10px;backdrop-filter:blur(6px);display:none;z-index:9999}
+    .status{font-size:12px;color:#9ca3af;margin-left:8px}
   </style>
 </head>
 <body>
@@ -47,6 +41,7 @@
     <div style="display:flex;gap:10px;align-items:center">
       <img src="icons/icon-48.png" width="28" height="28" alt="" style="border-radius:6px">
       <h1>PAROLE5</h1>
+      <span id="status" class="status">Init…</span>
     </div>
     <div style="display:flex;gap:8px">
       <button id="btnDict" class="btn">Dizionario</button>
@@ -55,7 +50,14 @@
     </div>
   </header>
 
-  <main id="board" aria-label="Griglia delle lettere"></main>
+  <main id="board" aria-label="Griglia delle lettere">
+    <div class="row"><div class="tile" id="t00"></div><div class="tile" id="t01"></div><div class="tile" id="t02"></div><div class="tile" id="t03"></div><div class="tile" id="t04"></div></div>
+    <div class="row"><div class="tile" id="t10"></div><div class="tile" id="t11"></div><div class="tile" id="t12"></div><div class="tile" id="t13"></div><div class="tile" id="t14"></div></div>
+    <div class="row"><div class="tile" id="t20"></div><div class="tile" id="t21"></div><div class="tile" id="t22"></div><div class="tile" id="t23"></div><div class="tile" id="t24"></div></div>
+    <div class="row"><div class="tile" id="t30"></div><div class="tile" id="t31"></div><div class="tile" id="t32"></div><div class="tile" id="t33"></div><div class="tile" id="t34"></div></div>
+    <div class="row"><div class="tile" id="t40"></div><div class="tile" id="t41"></div><div class="tile" id="t42"></div><div class="tile" id="t43"></div><div class="tile" id="t44"></div></div>
+    <div class="row"><div class="tile" id="t50"></div><div class="tile" id="t51"></div><div class="tile" id="t52"></div><div class="tile" id="t53"></div><div class="tile" id="t54"></div></div>
+  </main>
 
   <section id="keyboard" aria-label="Tastiera">
     <div class="kbrow" id="kb1"></div>
@@ -70,79 +72,53 @@
   <div id="toast" role="status" aria-live="polite"></div>
 
   <dialog id="dlg">
-    <div class="dlg-h">
-      <strong style="letter-spacing:.5px">Gestione Dizionario (IT, 5 lettere)</strong>
+    <div class="dlg-h" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #1f2937">
+      <strong style="letter-spacing:.5px">Gestione Dizionario</strong>
       <button class="btn" onclick="document.getElementById('dlg').close()">Chiudi</button>
     </div>
-    <div class="dlg-c">
-      <div class="pill">Attive: <span id="countWords">0</span> parole</div>
-      <div class="row-actions">\n        <label class="btn"><input type="checkbox" id="useLarge" style="margin-right:6px">Usa lista estesa (se disponibile)</label>
+    <div class="dlg-c" style="padding:12px 14px">
+      <div class="pill" style="display:inline-flex;gap:8px;align-items:center;background:#0f1a2e;border:1px solid #1e2a42;border-radius:999px;padding:6px 10px;font-size:12px;color:#cbd5e1">
+        Attive: <span id="countWords">0</span> parole
+      </div>
+      <div class="row-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <label class="btn primary" for="fileInput">Carica file .txt</label>
-        <input id="fileInput" type="file" accept=".txt" />
+        <input id="fileInput" type="file" accept=".txt" style="display:none" />
         <button id="btnPaste" class="btn">Incolla parole</button>
         <button id="btnExport" class="btn">Esporta .txt</button>
         <button id="btnReset" class="btn">Ripristina starter</button>
       </div>
-      <p class="hint">Formato: una parola per riga (solo lettere A‑Z), 5 lettere, MAIUSCOLE o minuscole. Il dizionario viene salvato offline.</p>
-      <details>
-        <summary>Come ampliare il dizionario</summary>
-        <p class="hint">Carica un file con migliaia di parole da fonti pubbliche (es. wordlist IT). Più parole = gioco più ricco. Lo starter incluso è solo dimostrativo.</p>
-      </details>
+      <p class="hint" style="font-size:12px;color:#9ca3af">Formato: una parola per riga (solo lettere A‑Z), 5 lettere. Il dizionario viene salvato offline.</p>
     </div>
   </dialog>
 
 <script>
-(function(){
+(function(){ try { 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch(()=>{});
     });
   }
 
-  const STARTER_URL = 'words-it-5.txt';\n  const LARGE_URL = 'words-it-5-large.txt';
+  const STARTER_URL = 'words-it-5.txt';
+  const LARGE_URL = 'words-it-5-large.txt';
   const LS_KEY = 'parole5-dict-it-5';
   const STATE_KEY = 'parole5-'+todayKey();
+  const statusEl = document.getElementById('status');
 
   let DICT = [];
 
-  const state = {
-    answer: 'AMORE',
-    row: 0,
-    col: 0,
-    grid: Array.from({length:6},()=>Array(5).fill('')),
-    locked:false,
-  };
-
-  const board = document.getElementById('board');
-  const toast = document.getElementById('toast');
-
-  for(let r=0;r<6;r++){
-    const row=document.createElement('div'); row.className='row';
-    for(let c=0;c<5;c++){
-      const tile=document.createElement('div');
-      tile.className='tile'; tile.id=`t${r}${c}`; row.appendChild(tile);
-    }
-    board.appendChild(row);
-  }
+  const state = { answer:'AMORE', row:0, col:0, grid:Array.from({length:6},()=>Array(5).fill('')), locked:false };
 
   const K1 = "QWERTYUIOP".split('');
   const K2 = "ASDFGHJKL".split('');
   const K3 = ["INVIO","Z","X","C","V","B","N","M","⌫"];
-  [["kb1",K1],["kb2",K2],["kb3",K3]].forEach(([id,keys])=>{
-    const wrap=document.getElementById(id);
-    keys.forEach(k=>{
-      const b=document.createElement('button');
-      b.className='key'+(k.length>1?' sm':'');
-      b.textContent=k;
-      b.addEventListener('click',()=>onKey(k));
-      wrap.appendChild(b);
-    });
+  [["kb1",K1],["kb2",K2],["kb3",K3]].forEach(([id,keys])=>{ const wrap=document.getElementById(id);
+    keys.forEach(k=>{ const b=document.createElement('button'); b.className='key'+(k.length>1?' sm':''); b.textContent=k; b.addEventListener('click',()=>onKey(k)); wrap.appendChild(b); });
   });
 
   document.addEventListener('keydown', (e)=>{
     if(state.locked) return;
-    if(e.key==='Enter') onKey('INVIO');
-    else if(e.key==='Backspace') onKey('⌫');
+    if(e.key==='Enter') onKey('INVIO'); else if(e.key==='Backspace') onKey('⌫');
     else if(/^[a-zA-ZÀ-ÿ]$/.test(e.key)) onKey(e.key.toUpperCase());
   });
 
@@ -150,183 +126,61 @@
     state.answer = pickDailyWord(DICT);
     restoreState();
     updateCount();
-  });
-
-  
-  // Read toggle from localStorage
-  const useLargeBox = document.getElementById('useLarge');
-  const USE_LS = 'parole5-use-large';
-  if (useLargeBox){
-    const pref = localStorage.getItem(USE_LS);
-    useLargeBox.checked = pref === '1';
-    useLargeBox.addEventListener('change', ()=>{
-      localStorage.setItem(USE_LS, useLargeBox.checked ? '1' : '0');
-      // Reload dictionary immediately
-      localStorage.removeItem(LS_KEY);
-      location.reload();
-    });
-  }
+    status('Dizionario: '+DICT.length.toLocaleString('it-IT')+' parole');
+  }).catch((err)=>{ status('Errore dizionario'); showToast('Errore dizionario'); console.error(err); });
 
   async function initDict(){
     const saved = localStorage.getItem(LS_KEY);
-    if(saved){
-      try {
-        const arr = JSON.parse(saved);
-        if(Array.isArray(arr) && arr.length>0){ DICT = sanitizeWords(arr); return; }
-      } catch {}
-    }
-    try{
-      const useLarge = (localStorage.getItem('parole5-use-large')==='1');
-      const url = LARGE_URL;
-      const txt = await fetch(url).then(r=>r.text());
-      DICT = sanitizeWords(txt.split(/\r?\n/));
-      saveDict();
-    }catch{
-      DICT = [];
-    }
+    if(saved){ try{ const arr = JSON.parse(saved); if(Array.isArray(arr) && arr.length>0){ DICT = sanitizeWords(arr); return; } }catch{} }
+    try{ const txt = await fetch(LARGE_URL, {cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject(r.status)); DICT = sanitizeWords(txt.split(/\r?\n/)); saveDict(); return; }catch(e){ console.warn('large list fail', e); }
+    try{ const txt = await fetch(STARTER_URL, {cache:'no-store'}).then(r=>r.text()); DICT = sanitizeWords(txt.split(/\r?\n/)); saveDict(); return; }catch(e){ console.warn('starter list fail', e); DICT = ['AMORE','GATTO','TEMPO','CUORE','SOLE']; saveDict(); }
   }
 
-  function sanitizeWords(arr){
-    const set = new Set();
-    arr.forEach(w=>{
-      if(!w) return;
-      const s = w.toString().normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase();
-      if(s.length===5) set.add(s);
-    });
-    return Array.from(set);
-  }
-
+  function sanitizeWords(arr){ const set = new Set(); arr.forEach(w=>{ if(!w) return; const s = w.toString().normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase(); if(s.length===5) set.add(s); }); return Array.from(set); }
   function saveDict(){ localStorage.setItem(LS_KEY, JSON.stringify(DICT)); }
   function todayKey(){ return new Date().toISOString().slice(0,10); }
-  function pickDailyWord(list){
-    if(!list || list.length===0) return 'AMORE';
-    const seed = todayKey().replace(/-/g,'');
-    let h=0; for(let i=0;i<seed.length;i++){h=(h*31 + seed.charCodeAt(i))>>>0}
-    return list[h % list.length];
-  }
+  function pickDailyWord(list){ if(!list || list.length===0) return 'AMORE'; const seed = todayKey().replace(/-/g,''); let h=0; for(let i=0;i<seed.length;i++){h=(h*31 + seed.charCodeAt(i))>>>0} return list[h % list.length]; }
 
   function onKey(k){
     if(state.locked) return;
     if(k==='INVIO') return submit();
     if(k==='⌫') return back();
     if(!/^[A-Z]$/.test(k)) return;
-    if(state.col<5){
-      state.grid[state.row][state.col]=k;
-      paint(state.row,state.col,k);
-      state.col++;
-      tileEl(state.row,state.col-1).classList.add('filled');
-    }
+    if(state.col<5){ state.grid[state.row][state.col]=k; paint(state.row,state.col,k); state.col++; tileEl(state.row,state.col-1).classList.add('filled'); }
   }
 
-  function back(){
-    if(state.col>0){
-      state.col--; state.grid[state.row][state.col]='';
-      paint(state.row,state.col,'');
-      tileEl(state.row,state.col).classList.remove('filled');
-    }
-  }
+  function back(){ if(state.col>0){ state.col--; state.grid[state.row][state.col]=''; paint(state.row,state.col,''); tileEl(state.row,state.col).classList.remove('filled'); } }
 
   function submit(){
-    if(state.col<5){return showToast('Servono 5 lettere.');}
+    if(state.col<5) return showToast('Servono 5 lettere.');
     const guess = state.grid[state.row].join('');
     if(!DICT.includes(guess)) return showToast('Parola non nel dizionario.');
-    const res = score(guess, state.answer);
-    reveal(res);
-    colorKeyboard(guess,res);
-
-    if(res.every(x=>x==='ok')){
-      state.locked=true; persist(true);
-      return showToast('Bravo! Hai indovinato.');
-    }
+    const res = score(guess, state.answer); reveal(res); colorKeyboard(guess,res);
+    if(res.every(x=>x==='ok')){ state.locked=true; persist(true); return showToast('Bravo! Hai indovinato.'); }
     state.row++; state.col=0;
     if(state.row===6){ state.locked=true; persist(false); showToast(`La parola era ${state.answer}.`); }
   }
 
-  function score(guess, answer){
-    const g=guess.split(''); const a=answer.split('');
-    const res = Array(5).fill('no'); const freq = {};
-    a.forEach(ch=>freq[ch]=(freq[ch]||0)+1);
-    for(let i=0;i<5;i++) if(g[i]===a[i]){res[i]='ok'; freq[g[i]]--;}
-    for(let i=0;i<5;i++) if(res[i]==='no' && (freq[g[i]]||0)>0){res[i]='maybe'; freq[g[i]]--;}
-    return res;
-  }
-
-  function reveal(res){
-    for(let c=0;c<5;c++){
-      const el = tileEl(state.row,c);
-      el.classList.remove('filled');
-      el.classList.add(res[c]);
-    }
-    persist();
-  }
-
-  function colorKeyboard(guess,res){
-    const m = {};
-    for(let i=0;i<5;i++){
-      const ch=guess[i];
-      const val=res[i]==='ok'?3:res[i]==='maybe'?2:1;
-      m[ch]=Math.max(m[ch]||0,val);
-    }
-    document.querySelectorAll('.key').forEach(k=>{
-      const ch=k.textContent.length===1?k.textContent:null; if(!ch) return;
-      const v=m[ch]; if(!v) return;
-      k.classList.remove('ok','maybe','no');
-      if(v===3) k.classList.add('ok');
-      else if(v===2) k.classList.add('maybe');
-      else k.classList.add('no');
-    });
-  }
-
+  function score(guess, answer){ const g=guess.split(''); const a=answer.split(''); const res = Array(5).fill('no'); const freq = {}; a.forEach(ch=>freq[ch]=(freq[ch]||0)+1); for(let i=0;i<5;i++) if(g[i]===a[i]){res[i]='ok'; freq[g[i]]--;} for(let i=0;i<5;i++) if(res[i]==='no' && (freq[g[i]]||0)>0){res[i]='maybe'; freq[g[i]]--;} return res; }
+  function reveal(res){ for(let c=0;c<5;c++){ const el = tileEl(state.row,c); el.classList.remove('filled'); el.classList.add(res[c]); } persist(); }
+  function colorKeyboard(guess,res){ const m = {}; for(let i=0;i<5;i++){ const ch=guess[i]; const val=res[i]==='ok'?3:res[i]==='maybe'?2:1; m[ch]=Math.max(m[ch]||0,val); } document.querySelectorAll('.key').forEach(k=>{ const ch=k.textContent.length===1?k.textContent:null; if(!ch) return; const v=m[ch]; if(!v) return; k.classList.remove('ok','maybe','no'); if(v===3) k.classList.add('ok'); else if(v===2) k.classList.add('maybe'); else k.classList.add('no'); }); }
   function tileEl(r,c){return document.getElementById(`t${r}${c}`)}
   function paint(r,c,ch){ tileEl(r,c).textContent=ch }
 
-  function persist(win){
-    const data={win:win??null, grid:state.grid, row:state.row, answer:state.answer};
-    localStorage.setItem(STATE_KEY, JSON.stringify(data));
-  }
-  function restoreState(){
-    const raw = localStorage.getItem(STATE_KEY); if(!raw) return;
-    try{
-      const d = JSON.parse(raw);
-      if(!d) return;
-      state.answer=d.answer||state.answer;
-      state.grid=d.grid||state.grid;
-      state.row=0; state.col=0;
-      for(let r=0;r<6;r++){
-        for(let c=0;c<5;c++){ paint(r,c, state.grid[r][c]||''); if(state.grid[r][c]) tileEl(r,c).classList.add('filled'); }
-        if(state.grid[r].every(x=>x)){
-          const res=score(state.grid[r].join(''),state.answer);
-          revealRow(r,res); colorKeyboard(state.grid[r].join(''),res); state.row=r+1; state.col=0;
-        }
-      }
-      if(d.win===true || state.row>=6){ state.locked=true; }
-    }catch{}
-  }
+  function persist(win){ const data={win:win??null, grid:state.grid, row:state.row, answer:state.answer}; localStorage.setItem(STATE_KEY, JSON.stringify(data)); }
+  function restoreState(){ const raw = localStorage.getItem(STATE_KEY); if(!raw) return; try{ const d = JSON.parse(raw); if(!d) return; state.answer=d.answer||state.answer; state.grid=d.grid||state.grid; state.row=0; state.col=0; for(let r=0;r<6;r++){ for(let c=0;c<5;c++){ paint(r,c, state.grid[r][c]||''); if(state.grid[r][c]) tileEl(r,c).classList.add('filled'); } if(state.grid[r].every(x=>x)){ const res=score(state.grid[r].join(''),state.answer); revealRow(r,res); colorKeyboard(state.grid[r].join(''),res); state.row=r+1; state.col=0; } } if(d.win===true || state.row>=6){ state.locked=true; } }catch{} }
   function revealRow(r,res){ for(let c=0;c<5;c++){ const el=tileEl(r,c); el.classList.remove('filled'); el.classList.add(res[c]); } }
 
-  document.getElementById('btnShare').addEventListener('click',()=>{
-    const lines=[]; let tries=state.locked && state.row<=6?state.row:Math.min(state.row,6);
-    lines.push(`Parole5 ${new Date().toISOString().slice(0,10)} ${tries}/6`);
-    for(let r=0;r<Math.min(state.row,6);r++){
-      if(!state.grid[r].every(x=>x)) break;
-      const res=score(state.grid[r].join(''),state.answer);
-      lines.push(res.map(x=> x==='ok'?'🟩': x==='maybe'?'🟨':'⬛').join(''))
-    }
-    const text=lines.join('\n');
-    if(navigator.share){ navigator.share({text}).catch(()=>copy(text)); }
-    else copy(text);
-  });
+  document.getElementById('btnShare').addEventListener('click',()=>{ const lines=[]; let tries=state.locked && state.row<=6?state.row:Math.min(state.row,6); lines.push(`Parole5 ${new Date().toISOString().slice(0,10)} ${tries}/6`); for(let r=0;r<Math.min(state.row,6);r++){ if(!state.grid[r].every(x=>x)) break; const res=score(state.grid[r].join(''),state.answer); lines.push(res.map(x=> x==='ok'?'🟩': x==='maybe'?'🟨':'⬛').join('')) } const text=lines.join('\n'); if(navigator.share){ navigator.share({text}).catch(()=>copy(text)); } else copy(text); });
   function copy(t){ navigator.clipboard.writeText(t).then(()=>showToast('Copiato negli appunti!')).catch(()=>showToast('Testo pronto da incollare.')) }
 
-  document.getElementById('btnNew').addEventListener('click',()=>{
-    localStorage.removeItem(STATE_KEY); location.reload();
-  });
+  document.getElementById('btnNew').addEventListener('click',()=>{ localStorage.removeItem(STATE_KEY); location.reload(); });
 
   const dlg = document.getElementById('dlg');
   document.getElementById('btnDict').addEventListener('click',()=>{ dlg.showModal(); updateCount(); });
   document.getElementById('btnReset').addEventListener('click',()=>{
     fetch(STARTER_URL).then(r=>r.text()).then(t=>{
-      DICT = sanitizeWords(t.split(/\r?\n/)); saveDict(); updateCount(); showToast('Starter ripristinato.');
+      DICT = sanitizeWords(t.split(/\r?\n/)); saveDict(); updateCount(); showToast('Starter ripristinato.'); status('Starter attivo: '+DICT.length);
     });
   });
   document.getElementById('btnExport').addEventListener('click',()=>{
@@ -338,28 +192,20 @@
   document.getElementById('btnPaste').addEventListener('click',async()=>{
     const txt = prompt('Incolla qui parole (una per riga):'); if(!txt) return;
     const arr = txt.split(/\r?\n/);
-    const merged = sanitizeWords(DICT.concat(arr));
-    DICT = merged; saveDict(); updateCount(); showToast('Dizionario aggiornato.');
+    DICT = sanitizeWords(DICT.concat(arr));
+    saveDict(); updateCount(); showToast('Dizionario aggiornato.'); status('Dizionario: '+DICT.length);
   });
   document.getElementById('fileInput').addEventListener('change',async(e)=>{
     const file = e.target.files[0]; if(!file) return;
     const txt = await file.text();
-    const arr = txt.split(/\r?\n/);
-    DICT = sanitizeWords(arr);
-    saveDict(); updateCount(); showToast('Dizionario caricato.');
+    DICT = sanitizeWords(txt.split(/\r?\n/));
+    saveDict(); updateCount(); showToast('Dizionario caricato.'); status('Dizionario: '+DICT.length);
   });
 
   function updateCount(){ document.getElementById('countWords').textContent = DICT.length.toLocaleString('it-IT'); }
-
-  function showToast(msg){ toast.textContent=msg; toast.style.display='block'; clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.style.display='none',1500); }
-})();
-window.addEventListener('error', (e)=>{
-  const t = document.getElementById('toast');
-  if(!t) return;
-  t.textContent = 'Errore: ' + (e.message||'script');
-  t.style.display='block';
-});
-</script>
-
+  function status(msg){ if(statusEl) statusEl.textContent = msg; }
+  function showToast(msg){ const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.style.display='block'; clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.style.display='none',2000); }
+} catch(err) { const t=document.getElementById('toast'); if(t){ t.textContent='Errore inizializzazione'; t.style.display='block'; } console.error(err); }
+})();</script>
 </body>
 </html>
